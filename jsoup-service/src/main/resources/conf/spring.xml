@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context" xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:dubbo="http://code.alibabatech.com/schema/dubbo"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.2.xsd
+	http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.2.xsd
+	http://code.alibabatech.com/schema/dubbo http://code.alibabatech.com/schema/dubbo/dubbo.xsd
+	http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.2.xsd http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.2.xsd
+	http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-4.2.xsd">
+	
+		<context:component-scan base-package="com.cpx.*" />
+		
+	<!-- 开启扫描 -->
+	<!-- 数据库连接池 -->
+	 <!--配置c3p0连接池-->
+<!--     <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource"> -->
+<!--         <property name="driverClass" value="oracle.jdbc.driver.OracleDriver"></property> -->
+<!--         <property name="jdbcUrl" value="jdbc:oracle:thin:@localhost:1521:JAVADBA"></property> -->
+<!--         <property name="user" value="YCJYLZX"></property> -->
+<!--         <property name="password" value="YCJYLZX"></property> -->
+<!--     </bean> -->
+
+	 <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+        <property name="driverClass" value="com.mysql.jdbc.Driver"></property>
+        <property name="jdbcUrl" value="jdbc:mysql://localhost:3306/1609A?useUnicode=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull"></property>
+<!--         <property name="jdbcUrl" value="jdbc:mysql://localhost:3306/1609A?useUnicode=true&amp;characterEncoding=UTF-8&amp;zeroDateTimeBehavior=convertToNull"></property> -->
+        <property name="user" value="root"></property>
+        <property name="password" value="root"></property>
+    </bean>
+
+	<!-- 配置aop管理事务 -->
+	<!-- 配置aop管理事务 -->
+	<!-- 配置aop管理事务 -->
+		<!-- 定义事务管理器 粗粒度的配置-->
+	<bean id="transactionManager" 
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+	
+	<!-- 定义事务策略 细粒度的配置-->
+	<tx:advice id="txAdvice" transaction-manager="transactionManager">
+		<tx:attributes>
+			<!--所有以query开头的方法都是只读的   只读的情况下是没有事务产生的 -->
+			<tx:method name="query*" read-only="true" />
+			<tx:method name="get*" read-only="true" />
+			<!--其他方法使用默认事务策略 -->
+			<tx:method name="delete*" propagation="REQUIRED"  read-only="false"/>
+			<tx:method name="edit*" propagation="REQUIRED" read-only="false"/>
+			<tx:method name="add*" propagation="REQUIRED" read-only="false"/>
+			<tx:method name="update*" propagation="REQUIRED" read-only="false"/>
+		</tx:attributes>
+	</tx:advice>
+	
+	<!-- 更加细粒度的配置 -->
+	<aop:config>
+		<!--pointcut元素定义一个切入点，execution中的第一个星号 用以匹配方法的返回类型，
+			这里星号表明匹配所有返回类型。 com.bw.service.*.*(..)表明匹配com.bw.service包下的所有类的所有 
+			方法 -->
+		<aop:pointcut id="myPointcut" expression="execution(* com.cpx.service.*.*(..))" />
+		<!--将定义好的事务处理策略应用到上述的切入点 -->
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="myPointcut" />
+	</aop:config>
+	
+	<!-- 配置mybatis -->
+	<!-- mybatis的配置 -->
+	 <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+	 	<!-- 引入数据源 -->
+        <property name="dataSource" ref="dataSource"></property>
+		<!--加载mybatis.cfg.xml文件 -->
+         <property name="configLocation" value="classpath:conf/SqlMapConfig.xml"></property>
+		<!--自动扫描需要定义类别名的包，将包内的JAVA类的类名作为类别名 -->
+         <property name="typeAliasesPackage" value="com.cpx.pojo"></property>
+    </bean>
+    
+      <!-- 自动扫描所有的Mapper接口与文件 -->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.cpx.mapper"></property>
+    </bean>
+
+	<!--引入activemq-->
+	<import resource="activemq-producer.xml"/>
+	<import resource="activemq-consumer-queue.xml"/>
+
+<!-- 往dubbo注册中心注册的应用名字 -->
+<dubbo:application name="JsoupService" />
+<!-- 指向dubbo的地址 -->
+<dubbo:registry protocol="zookeeper" address="120.78.167.80:2181" />
+<!-- 用dubbo协议在20882端口暴露服务 -->
+<dubbo:protocol name="dubbo" port="20883" />
+<!-- 声明需要暴露的服务接口 -->
+<dubbo:service interface="com.cpx.interfaces.JsoupService" ref="jsoupServiceImpl" timeout="600000" loadbalance="roundrobin"/>
+
+	
+
+	
+</beans>
